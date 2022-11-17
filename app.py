@@ -16,7 +16,6 @@ def gerar_txt_saida(linha):
             print(linha)
 
 
-
 def pegar_centro_custo(linha):
     if 'Total do Rateio' in linha[0]:
         if linha[0].split('-')[-1].strip() == 'labores':
