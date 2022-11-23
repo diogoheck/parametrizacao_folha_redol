@@ -2,29 +2,33 @@ import csv
 from openpyxl import load_workbook
 import os
 
+EMPRESA = '0001'
+
+
 class Rota:
     centro_custo = False
     evento = False
     fim_rateio = False
 
 
-def auxiliar_folha(codigo_evento, conta_debito, conta_credito, folha, descricao, valor):
+def auxiliar_folha(codigo_evento, conta_debito, conta_credito, folha, descricao, valor, historico):
     if tabela_eventos.get(codigo_evento).get('tipo') == 'P':
-        print(f'{conta_debito}|{conta_credito}|{descricao}|{valor}|', file=folha)
+        print(f'{EMPRESA}|{historico}|{conta_debito}|{conta_credito}|{descricao}|{valor}|', file=folha)
     else:
-        print(f'{conta_credito}|{conta_debito}{descricao}|{valor}|', file=folha)
+        print(f'{EMPRESA}|{historico}|{conta_credito}|{conta_debito}{descricao}|{valor}|', file=folha)
 
 
 def layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_custo, linha, provento):
     conta_debito = tabela_eventos.get(codigo_evento)[centro_de_custo] 
     conta_credito = tabela_eventos.get(codigo_evento)["credito"]
+    historico = tabela_eventos.get(codigo_evento)["hist"]
     if provento:
         valor = linha[4]
         descricao = linha[2]
     else:
         valor = linha[9]
         descricao = linha[7]
-    auxiliar_folha(codigo_evento, conta_debito, conta_credito, folha, descricao, valor)
+    auxiliar_folha(codigo_evento, conta_debito, conta_credito, folha, descricao, valor, historico)
 
 
     
@@ -52,7 +56,7 @@ def gerar_txt_saida(linha, tabela_eventos, centro_de_custo):
                 if len(linha) > 3 and len(linha) <= 10:
                     try:
                         codigo_evento = int(linha[0])
-                        print(linha, len(linha))
+                        # print(linha, len(linha))
 
                         if len(linha) == 10:
                             # lanca provento
