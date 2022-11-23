@@ -11,43 +11,48 @@ class Rota:
     fim_rateio = False
 
 
-def auxiliar_folha(codigo_evento, conta_debito, conta_credito, folha, descricao, valor, historico):
+def auxiliar_folha(codigo_evento, conta_debito, conta_credito, folha, descricao, valor, historico, data):
+
     if tabela_eventos.get(codigo_evento).get('tipo') == 'P':
-        print(f'{EMPRESA}|{historico}|{conta_debito}|{conta_credito}|{descricao}|{valor}|', file=folha)
-    else:
+        print(f'{EMPRESA}{28 * " "}{data}{35 * " "}{conta_debito} {conta_credito}{13 * " "}{historico} {valor}', file=folha)
+    elif tabela_eventos.get(codigo_evento).get('tipo') == 'D':
         print(f'{EMPRESA}|{historico}|{conta_credito}|{conta_debito}{descricao}|{valor}|', file=folha)
 
 
-def layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_custo, linha, provento):
-    conta_debito = tabela_eventos.get(codigo_evento)[centro_de_custo] 
-    conta_credito = tabela_eventos.get(codigo_evento)["credito"]
-    historico = tabela_eventos.get(codigo_evento)["hist"]
+def layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_custo, linha, provento, data):
+    conta_debito = str(tabela_eventos.get(codigo_evento)[centro_de_custo]).replace('-', '').zfill(7) 
+    conta_credito = str(tabela_eventos.get(codigo_evento)["credito"]).replace('-', '').zfill(19) 
+    historico = str(tabela_eventos.get(codigo_evento)["hist"]).zfill(4)
     if provento:
-        valor = linha[4]
+        valor = linha[4].replace('.', '').replace(',', '').zfill(16)
         descricao = linha[2]
     else:
-        valor = linha[9]
+        valor = linha[9].replace('.', '').replace(',', '').zfill(16)
         descricao = linha[7]
-    auxiliar_folha(codigo_evento, conta_debito, conta_credito, folha, descricao, valor, historico)
+    auxiliar_folha(codigo_evento, conta_debito, conta_credito, folha, descricao, valor, historico, data)
 
 
     
-def lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento):
+def lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data):
     if codigo_evento:
         if tabela_eventos.get(codigo_evento):
             
             if tabela_eventos.get(codigo_evento).get(centro_de_custo, 'NAO ENCONTRADO'):
-                    layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_custo, linha, provento)
+                    layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_custo, linha, provento, data)
 
             elif tabela_eventos.get(codigo_evento).get(centro_de_custo, 'NAO ENCONTRADO') == 'NAO ENCONTRADO':
-                print(f'centro de custos {centro_de_custo} nao encontrado ', file=log)    
+                print(f'centro de custos {centro_de_custo} nao encontrado ', file=log)
+                    
         else:
+            print(codigo_evento)
             print(f'evento {codigo_evento} nao encontrado', file=log)
+            
+    
+    
 
-
-def gerar_txt_saida(linha, tabela_eventos, centro_de_custo):
+def gerar_txt_saida(linha, tabela_eventos, centro_de_custo, data):
     provento = True
-
+    
     with open('log.txt', 'a') as log:
         with open('layout_folha_importacao.txt', 'a', encoding='utf-8') as folha:
             if linha[0] and linha[0] != 'Ev':
@@ -61,14 +66,14 @@ def gerar_txt_saida(linha, tabela_eventos, centro_de_custo):
                         if len(linha) == 10:
                             # lanca provento
                             provento = True
-                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento)
+                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data)
                             # lanca desconto
-                            codigo_evento = linha[5]
+                            codigo_evento = int(linha[5])
                             provento = False
-                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento)
+                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data)
                         elif len(linha) == 5:
                             provento = True
-                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento)
+                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data)
                          
 
                     except:
@@ -134,10 +139,17 @@ if __name__ == '__main__':
         os.remove('log.txt')
 
     centro_de_custo = None
+    pegou_data = False
     with open('Relatorios_Calculo_Relacao_de_Calculo_Rateada.csv') as folha:
 
         for linha in csv.reader(folha, delimiter=';'):
             if linha:
+                if 'Período' in linha[0] and not pegou_data:
+                    pegou_data = True
+                    data = linha[0].split(' ')[3]
+                    data_ajuste = data.split('/')[2][2:4] + data.split('/')[1] + data.split('/')[0]
+                    # print(data_ajuste)
+
                 if 'Total do Rateio' in linha[0]:
                     if linha[0].split('-')[-1].strip() == 'labores':
                         centro_de_custo = 'Pro-labores'
@@ -150,9 +162,26 @@ if __name__ == '__main__':
                 if 'Ev' in linha and Rota.centro_custo:
                     Rota.evento = True
                 if Rota.centro_custo and Rota.evento:
-                    gerar_txt_saida(linha, tabela_eventos, centro_de_custo)
+                    gerar_txt_saida(linha, tabela_eventos, centro_de_custo, data_ajuste)
                 if 'Parte RAT' in linha[0]:
                     Rota.centro_custo = False
                     Rota.evento = False
+
+
+    # eliminar repeticoes no arquivo de log
+    if os.path.exists('log.txt'):
+        conjunto = tuple()
+        with open('log.txt', 'r') as log:
+            conjunto = set(log.readlines())
+            
+    os.remove('log.txt')
+    # print(conjunto)
+
+    with open('log.txt', 'a') as log:
+        for conj in conjunto:
+            print(f'{conj.strip()}', file=log)
+
+
+            
 
            
