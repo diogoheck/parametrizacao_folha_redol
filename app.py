@@ -11,40 +11,55 @@ class Rota:
     fim_rateio = False
 
 
-def auxiliar_folha(codigo_evento, conta_debito, conta_credito, folha, descricao, valor, historico, data):
+def auxiliar_folha(codigo_evento, folha, valor, historico, data, centro_de_custo):
 
     if tabela_eventos.get(codigo_evento).get('tipo') == 'P':
-        print(f'{EMPRESA}{28 * " "}{data}{35 * " "}{conta_debito} {conta_credito}{13 * " "}{historico} {valor}', file=folha)
+        conta_debito = str(tabela_eventos.get(codigo_evento)[centro_de_custo]).replace('-', '').zfill(7) 
+        conta_credito = str(tabela_eventos.get(codigo_evento)["credito"]).replace('-', '').zfill(19) 
+        if float(valor) > 0:
+            print(f'{EMPRESA}{28 * " "}{data}{35 * " "}{conta_debito} {conta_credito}{13 * " "}{historico} {valor}', file=folha)
     elif tabela_eventos.get(codigo_evento).get('tipo') == 'D':
-        print(f'{EMPRESA}|{historico}|{conta_credito}|{conta_debito}{descricao}|{valor}|', file=folha)
+        conta_debito = str(tabela_eventos.get(codigo_evento)[centro_de_custo]).replace('-', '').zfill(19) 
+        conta_credito = str(tabela_eventos.get(codigo_evento)["credito"]).replace('-', '').zfill(7) 
+        if float(valor) > 0:
+            print(f'{EMPRESA}{28 * " "}{data}{35 * " "}{conta_credito} {conta_debito}{13 * " "}{historico} {valor}', file=folha)
+        
 
 
-def layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_custo, linha, provento, data):
-    conta_debito = str(tabela_eventos.get(codigo_evento)[centro_de_custo]).replace('-', '').zfill(7) 
-    conta_credito = str(tabela_eventos.get(codigo_evento)["credito"]).replace('-', '').zfill(19) 
+def layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_custo, linha, provento, data, INSS):
     historico = str(tabela_eventos.get(codigo_evento)["hist"]).zfill(4)
     if provento:
         valor = linha[4].replace('.', '').replace(',', '').zfill(16)
-        descricao = linha[2]
+        # descricao = linha[2]
+    elif INSS:
+        if codigo_evento == 'PARTE EMPRESA':
+            valor = linha[1].replace('.', '').replace(',', '').zfill(16)
+        elif codigo_evento == 'PARTE TERCEIROS':
+            # print('passe aqui')
+            valor = linha[3].replace('.', '').replace(',', '').zfill(16)
+        else:
+            valor = linha[1].replace('.', '').replace(',', '').zfill(16)
+
+
     else:
         valor = linha[9].replace('.', '').replace(',', '').zfill(16)
-        descricao = linha[7]
-    auxiliar_folha(codigo_evento, conta_debito, conta_credito, folha, descricao, valor, historico, data)
+        # descricao = linha[7]
+    auxiliar_folha(codigo_evento, folha, valor, historico, data, centro_de_custo)
 
 
     
-def lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data):
+def lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS):
     if codigo_evento:
         if tabela_eventos.get(codigo_evento):
             
             if tabela_eventos.get(codigo_evento).get(centro_de_custo, 'NAO ENCONTRADO'):
-                    layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_custo, linha, provento, data)
+                    layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_custo, linha, provento, data, INSS)
 
             elif tabela_eventos.get(codigo_evento).get(centro_de_custo, 'NAO ENCONTRADO') == 'NAO ENCONTRADO':
                 print(f'centro de custos {centro_de_custo} nao encontrado ', file=log)
                     
         else:
-            print(codigo_evento)
+            # print(codigo_evento)
             print(f'evento {codigo_evento} nao encontrado', file=log)
             
     
@@ -52,9 +67,11 @@ def lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, fol
 
 def gerar_txt_saida(linha, tabela_eventos, centro_de_custo, data):
     provento = True
-    
+    INSS = False
     with open('log.txt', 'a') as log:
         with open('layout_folha_importacao.txt', 'a', encoding='utf-8') as folha:
+            provento = False
+            INSS = False
             if linha[0] and linha[0] != 'Ev':
                 
                 # proventos e descontos
@@ -66,18 +83,44 @@ def gerar_txt_saida(linha, tabela_eventos, centro_de_custo, data):
                         if len(linha) == 10:
                             # lanca provento
                             provento = True
-                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data)
+                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
                             # lanca desconto
-                            codigo_evento = int(linha[5])
-                            provento = False
-                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data)
+                            if linha[5]:
+                                codigo_evento = int(linha[5])
+                                provento = False
+                                lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
                         elif len(linha) == 5:
                             provento = True
-                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data)
+                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
                          
 
                     except:
-                        pass
+                        
+                        if linha[0].replace(':', '').strip().upper() == 'PARTE EMPRESA':
+                            codigo_evento = linha[0].replace(':', '').strip().upper()
+                            print(codigo_evento, linha[1], centro_de_custo)
+                            INSS = True
+                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
+
+                        if linha[0].replace(':', '').strip().upper() == 'ENTIDADE FINANCEIRA':
+                            codigo_evento = linha[2].replace(':', '').strip().upper()
+                            print(codigo_evento, linha[3], centro_de_custo)
+                            INSS = True
+                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
+                        if linha[0].replace(':', '').strip().upper() == 'PARTE RAT + ACRÉS. FAP':
+                            codigo_evento = linha[0].replace(':', '').strip().upper()
+                            print(codigo_evento, linha[1], centro_de_custo)
+                            INSS = True
+                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
+
+                        
+                        
+                        
+                            # print(f'=> {linha}, {len(linha)} {centro_de_custo}')
+
+                # else:
+                    # if linha[0].replace(':', '').strip().upper() == 'PARTE EMPRESA':
+                    # print(linha[0])
 
 
 def pegar_centro_custo(linha):
@@ -153,12 +196,13 @@ if __name__ == '__main__':
                 if 'Total do Rateio' in linha[0]:
                     if linha[0].split('-')[-1].strip() == 'labores':
                         centro_de_custo = 'Pro-labores'
+                        Rota.centro_custo = True
                     elif 'Sem Rateio' in linha[0]:
                         centro_de_custo = None
                     else:
                         centro_de_custo = linha[0].split('-')[-1].strip()
-                if centro_de_custo:
-                    Rota.centro_custo = True
+                        Rota.centro_custo = True
+                
                 if 'Ev' in linha and Rota.centro_custo:
                     Rota.evento = True
                 if Rota.centro_custo and Rota.evento:
