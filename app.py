@@ -10,17 +10,23 @@ class Rota:
     evento = False
     fim_rateio = False
 
+#  centro_de_custo = 'Pro-labores'
 
 def auxiliar_folha(codigo_evento, folha, valor, historico, data, centro_de_custo):
 
     if tabela_eventos.get(codigo_evento).get('tipo') == 'P':
         conta_debito = str(tabela_eventos.get(codigo_evento)[centro_de_custo]).replace('-', '').zfill(7) 
-        conta_credito = str(tabela_eventos.get(codigo_evento)["credito"]).replace('-', '').zfill(19) 
+        conta_credito = str(tabela_eventos.get(codigo_evento)["credito"]).replace('-', '').zfill(19)
         if float(valor) > 0:
             print(f'{EMPRESA}{28 * " "}{data}{35 * " "}{conta_debito} {conta_credito}{13 * " "}{historico} {valor}', file=folha)
     elif tabela_eventos.get(codigo_evento).get('tipo') == 'D':
         conta_debito = str(tabela_eventos.get(codigo_evento)[centro_de_custo]).replace('-', '').zfill(19) 
-        conta_credito = str(tabela_eventos.get(codigo_evento)["credito"]).replace('-', '').zfill(7) 
+        conta_credito = str(tabela_eventos.get(codigo_evento)["credito"]).replace('-', '')
+        if conta_credito == '20370' and centro_de_custo == 'Pro-labores':
+            conta_credito = '20420'.zfill(7)
+        else:
+            conta_credito = str(tabela_eventos.get(codigo_evento)["credito"]).replace('-', '').zfill(7) 
+            
         if float(valor) > 0:
             print(f'{EMPRESA}{28 * " "}{data}{35 * " "}{conta_credito} {conta_debito}{13 * " "}{historico} {valor}', file=folha)
         
@@ -34,7 +40,7 @@ def layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_c
     elif INSS:
         if codigo_evento == 'PARTE EMPRESA':
             valor = linha[1].replace('.', '').replace(',', '').zfill(16)
-        elif codigo_evento == 'PARTE TERCEIROS':
+        elif codigo_evento == 'PARTE TERCEIROS' or codigo_evento == 'DIRETOR':
             # print('passe aqui')
             valor = linha[3].replace('.', '').replace(',', '').zfill(16)
         else:
@@ -72,7 +78,9 @@ def gerar_txt_saida(linha, tabela_eventos, centro_de_custo, data):
         with open('layout_folha_importacao.txt', 'a', encoding='utf-8') as folha:
             provento = False
             INSS = False
-            if linha[0] and linha[0] != 'Ev':
+            if linha[0] != 'Ev':
+                # print(linha, len(linha))
+            
                 
                 # proventos e descontos
                 if len(linha) > 3 and len(linha) <= 10:
@@ -96,22 +104,40 @@ def gerar_txt_saida(linha, tabela_eventos, centro_de_custo, data):
 
                     except:
                         
+                        if len(linha) == 10:
+                            try:
+                                codigo_evento = int(linha[5])
+                                provento = False
+                                lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
+                            except:
+                                pass
+                        
+                        print(linha)
                         if linha[0].replace(':', '').strip().upper() == 'PARTE EMPRESA':
                             codigo_evento = linha[0].replace(':', '').strip().upper()
-                            print(codigo_evento, linha[1], centro_de_custo)
+                            # print(codigo_evento, linha[1], centro_de_custo)
                             INSS = True
                             lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
 
                         if linha[0].replace(':', '').strip().upper() == 'ENTIDADE FINANCEIRA':
                             codigo_evento = linha[2].replace(':', '').strip().upper()
-                            print(codigo_evento, linha[3], centro_de_custo)
+                            # print(codigo_evento, linha[3], centro_de_custo)
                             INSS = True
                             lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
                         if linha[0].replace(':', '').strip().upper() == 'PARTE RAT + ACRÉS. FAP':
                             codigo_evento = linha[0].replace(':', '').strip().upper()
-                            print(codigo_evento, linha[1], centro_de_custo)
+                            # print(codigo_evento, linha[1], centro_de_custo)
                             INSS = True
                             lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
+                        if linha[0].replace(':', '').strip().upper() == 'SEGURADOS' and centro_de_custo == 'Pro-labores':
+                            codigo_evento = linha[2].replace(':', '').strip().upper()
+                            # print(codigo_evento, linha[1], centro_de_custo)
+                            INSS = True
+                            lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, folha, provento, data, INSS)
+                        
+                        
+
+                
 
                         
                         
@@ -224,6 +250,50 @@ if __name__ == '__main__':
     with open('log.txt', 'a') as log:
         for conj in conjunto:
             print(f'{conj.strip()}', file=log)
+
+    total_proventos = 0
+    total_descontos = 0
+    total_FGTS = 0
+    total_inss = 0
+    total_IRRF = 0
+    total_prolabore = 0
+    # conferencia da folha
+    with open('layout_folha_importacao.txt', 'r') as folha:
+        for linha in folha.readlines():
+            # print(linha.strip())
+            credito = linha.strip().split(' ')[-15][14::]
+            debito = linha.strip().split(' ')[-16][2::]
+            valor = float(linha.strip().split(' ')[-1]) / 100
+        
+            if credito == '20370' or credito == '20420':
+                total_proventos += valor
+            if debito == '20370':
+                total_descontos += valor
+            if credito == '20440':
+                total_FGTS += valor
+            if credito == '20430':
+                total_inss += valor
+            if debito == '20430':
+                total_inss -= valor
+            if credito == '20490':
+                total_IRRF += valor
+            if debito == '20490':
+                total_IRRF -= valor
+            if credito == '20420':
+                total_prolabore += valor
+            if debito == '20420':
+                total_prolabore -= valor
+
+
+
+            
+        
+        print(f'Total dos proventos: {round(total_proventos, 2)}')
+        print(f'Total de descontos: {round(total_descontos, 2)}')
+        print(f'FGTS a pagar: {round(total_FGTS, 2)}')
+        print(f'INSS a pagar: {round(total_inss, 2)}')
+        print(f'IRRF a pagar: {round(total_IRRF, 2)}')
+        print(f'Pro-labore a pagar: {round(total_prolabore, 2)}')
 
 
             
