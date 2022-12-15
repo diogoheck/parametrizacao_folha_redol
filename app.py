@@ -65,8 +65,9 @@ def lancar_folha(codigo_evento, log, tabela_eventos, centro_de_custo, linha, fol
                 print(f'centro de custos {centro_de_custo} nao encontrado ', file=log)
                     
         else:
+            # print(linha)
             # print(codigo_evento)
-            print(f'evento {codigo_evento} nao encontrado', file=log)
+            print(f'evento {codigo_evento} nao encontrado referente centro custo {centro_de_custo}', file=log)
             
     
     
@@ -112,7 +113,7 @@ def gerar_txt_saida(linha, tabela_eventos, centro_de_custo, data):
                             except:
                                 pass
                         
-                        print(linha)
+                        # print(linha)
                         if linha[0].replace(':', '').strip().upper() == 'PARTE EMPRESA':
                             codigo_evento = linha[0].replace(':', '').strip().upper()
                             # print(codigo_evento, linha[1], centro_de_custo)
@@ -267,7 +268,7 @@ if __name__ == '__main__':
         
             if credito == '20370' or credito == '20420':
                 total_proventos += valor
-            if debito == '20370':
+            if debito == '20370' or debito == '20420':
                 total_descontos += valor
             if credito == '20440':
                 total_FGTS += valor
@@ -286,14 +287,14 @@ if __name__ == '__main__':
 
 
 
-            
+        with open('memoria_calculo.txt', 'w') as memoria:
         
-        print(f'Total dos proventos: {round(total_proventos, 2)}')
-        print(f'Total de descontos: {round(total_descontos, 2)}')
-        print(f'FGTS a pagar: {round(total_FGTS, 2)}')
-        print(f'INSS a pagar: {round(total_inss, 2)}')
-        print(f'IRRF a pagar: {round(total_IRRF, 2)}')
-        print(f'Pro-labore a pagar: {round(total_prolabore, 2)}')
+            print(f'Total dos proventos: {round(total_proventos, 2)}', file=memoria)
+            print(f'Total de descontos: {round(total_descontos, 2)}', file=memoria)
+            print(f'FGTS a pagar: {round(total_FGTS, 2)}',file=memoria)
+            print(f'INSS a pagar: {round(total_inss, 2)}', file=memoria)
+            print(f'IRRF a pagar: {round(total_IRRF, 2)}', file=memoria)
+            print(f'Pro-labore a pagar: {round(total_prolabore, 2)}', file=memoria)
 
 
             
