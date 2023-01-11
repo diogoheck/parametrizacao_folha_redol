@@ -1,9 +1,13 @@
 import csv
 from openpyxl import load_workbook
 import os
-
+from provisao_13 import lancar_folha_13_salario
+from provisao_ferias import lancar_folha_ferias_salario
 EMPRESA = '0001'
 
+
+class DataArquivo:
+    data = '01011970'
 
 class Rota:
     centro_custo = False
@@ -35,20 +39,20 @@ def auxiliar_folha(codigo_evento, folha, valor, historico, data, centro_de_custo
 def layout_folha_sistema_redol(tabela_eventos, codigo_evento, folha, centro_de_custo, linha, provento, data, INSS):
     historico = str(tabela_eventos.get(codigo_evento)["hist"]).zfill(4)
     if provento:
-        valor = linha[4].replace('.', '').replace(',', '').zfill(16)
+        valor = linha[4].replace('.', '').replace(',', '').zfill(15) + '1'
         # descricao = linha[2]
     elif INSS:
         if codigo_evento == 'PARTE EMPRESA':
-            valor = linha[1].replace('.', '').replace(',', '').zfill(16)
+            valor = linha[1].replace('.', '').replace(',', '').zfill(15) + '1'
         elif codigo_evento == 'PARTE TERCEIROS' or codigo_evento == 'DIRETOR':
             # print('passe aqui')
-            valor = linha[3].replace('.', '').replace(',', '').zfill(16)
+            valor = linha[3].replace('.', '').replace(',', '').zfill(15) + '1'
         else:
-            valor = linha[1].replace('.', '').replace(',', '').zfill(16)
+            valor = linha[1].replace('.', '').replace(',', '').zfill(15) + '1'
 
 
     else:
-        valor = linha[9].replace('.', '').replace(',', '').zfill(16)
+        valor = linha[9].replace('.', '').replace(',', '').zfill(15) + '1'
         # descricao = linha[7]
     auxiliar_folha(codigo_evento, folha, valor, historico, data, centro_de_custo, tabela_eventos)
 
@@ -196,11 +200,7 @@ def lancar_folha_pagamento():
 
     # print(tabela_eventos)
     
-    if os.path.exists('layout_folha_importacao.txt'):
-        os.remove('layout_folha_importacao.txt')
-
-    if os.path.exists('log.txt'):
-        os.remove('log.txt')
+    
 
     centro_de_custo = None
     pegou_data = False
@@ -212,6 +212,7 @@ def lancar_folha_pagamento():
                     pegou_data = True
                     data = linha[0].split(' ')[3]
                     data_ajuste = data.split('/')[2][2:4] + data.split('/')[1] + data.split('/')[0]
+                    DataArquivo.data = data_ajuste
                     # print(data_ajuste)
 
                 if 'Total do Rateio' in linha[0]:
@@ -258,7 +259,8 @@ def lancar_folha_pagamento():
             # print(linha.strip())
             credito = linha.strip().split(' ')[-15][14::]
             debito = linha.strip().split(' ')[-16][2::]
-            valor = float(linha.strip().split(' ')[-1]) / 100
+            valor = float(linha.strip().split(' ')[-1][0:15]) / 100
+
         
             if credito == '20370' or credito == '20420':
                 total_proventos += valor
@@ -289,10 +291,7 @@ def lancar_folha_pagamento():
             print(f'INSS a pagar: {round(total_inss, 2)}', file=memoria)
             print(f'IRRF a pagar: {round(total_IRRF, 2)}', file=memoria)
             print(f'Pro-labore a pagar: {round(total_prolabore, 2)}', file=memoria)
-    print('\n')
-    print('finalizado com sucesso!!')
-    print('\n')
-    os.system('pause')
+ 
     
 
 
@@ -306,65 +305,10 @@ def converter_string_para_float(valor):
     return round(float(valor),2)
 
 
-class Funcionario:
-    def __init__(self, codigo, nome) -> None:
-        self.codigo = codigo
-        self.nome = nome
-        self.soma = False
-        self.provisao_13 = 0 
-
-    def add_saldo_anterior(self, valor):
-        self.provisao_13 += valor
-
-    def add_saldo(self, valor):
-        self.provisao_13 += valor
-
-    def add_pago(self, valor):
-        self.provisao_13 += valor
 
 
-def ler_tabela_eventos_provisoes():
-    dic_eventos = {}
-    lista_custos = []
-    cabecalho = True
-    pasta_eventos = load_workbook('eventos_provisoes.xlsx')
-    planilha_eventos = pasta_eventos['plan_provisoes']
-    
-    dic_func = {}
-    i = 1
-    for linha in planilha_eventos.values:
-        if i >= 3:
-            nome = linha[0]
-          
-            dic_func[nome] = {}
-            dic_func[nome].update({'cc': linha[1]})
-            dic_func[nome].update({'sub_c': linha[2]})
-            dic_func[nome].update({'prov_13_deb': linha[3]})
-            dic_func[nome].update({'prov_13_cred': linha[4]})
-            dic_func[nome].update({'prov_13_hist': linha[5]})
-            dic_func[nome].update({'fgts_13_deb' : linha[6]})
-            dic_func[nome].update({'fgts_13_cred' : linha[7]})
-            dic_func[nome].update({'fgts_13_hist' : linha[8]})
-            dic_func[nome].update({'fgts_13_hist_bx' : linha[9]})
-            dic_func[nome].update({'inss_13_deb' : linha[10]})
-            dic_func[nome].update({'inss_13_cred' : linha[11]})
-            dic_func[nome].update({'inss_13_hist' : linha[12]})
-            dic_func[nome].update({'inss_13_hist_bx' : linha[13]})
-            dic_func[nome].update({'prov_ferias_deb' : linha[15]})
-            dic_func[nome].update({'prov_ferias_cred' : linha[16]})
-            dic_func[nome].update({'prov_ferias_hist' : linha[17]})
-            dic_func[nome].update({'fgts_ferias_deb' : linha[18]})
-            dic_func[nome].update({'fgts_ferias_cred' : linha[19]})
-            dic_func[nome].update({'fgts_ferias_hist' : linha[20]})
-            dic_func[nome].update({'fgts_ferias_hist_bx' : linha[21]})
-            dic_func[nome].update({'inss_ferias_deb' : linha[22]})
-            dic_func[nome].update({'inss_ferias_cred' : linha[23]})
-            dic_func[nome].update({'inss_ferias_hist' : linha[24]})
-            dic_func[nome].update({'inss_ferias_hist_bx' : linha[25]})
-    
-        i +=1
 
-    return dic_func
+
     
             # print(linha)
 
@@ -373,99 +317,27 @@ def ler_tabela_eventos_provisoes():
 #     data = '221130'
 #     if float(valor) > 0:
 #         print(f'{EMPRESA}{28 * " "}{data}{35 * " "}{conta_credito} {conta_debito}{13 * " "}{historico} {valor}', file=folha)
+def log_erro(msg):
+    with open('log_provisoes.txt', 'r') as log:
+        print(msg, file=log)
 
 
-def lancar_folha_13_salario() :
 
-    with open('centro_de_custo.txt', 'r', encoding='utf-8') as cc:
-        arquivo_cc = [centro_custo.replace('\n', '') for centro_custo in cc.readlines()]
-    # print(arquivo_cc)
-    # ler a folha
-    saldo_anterior_boleano = False
-    saldo_boleano = False
-    pago_boleano = False
-    funcionario = False
-    total_saldo_anterior = 0.0
-    total_saldo = 0.0
-    total_pago = 0.0
-    dic_func = ler_tabela_eventos_provisoes()
 
-    with open('Relatorios_Funcionarios_Provisoes_Provisao_13o_Grafica.csv', 'r') as folha_13:
-        for linha in csv.reader(folha_13, delimiter=';'):
-            
-    
-            if linha:
-                # print(linha)
-                if len(linha) == 1:
-                    if (linha[0].strip().split('-')[0][0:11]).upper() == 'ORGANOGRAMA': 
-                        # possivel_centro_custo = linha[0].strip().split('-')[1].strip()
-                        # print(linha[0].strip().split('-')[0][0:11])
-                        centro_de_custo = linha[0].strip().split('-')[1].strip().upper()
-                        # if centro_de_custo in arquivo_cc:
-                        #     centro_de_custo = True
-                            # print(f'centro de custo =>> {centro_de_custo}')
-                try:
-                    
-                    codigo_funcionario = int(linha[0])
-                    nome_funcionario = linha[1]
-                    funcionario = True
-                    NovoFuncionario = Funcionario(codigo_funcionario, nome_funcionario)
-                    # print(f'{nome_funcionario};{centro_de_custo}')
-                except:
-                    pass
 
-                if funcionario:
-
-                    if linha[0].upper() == 'SALDO ANTERIOR':
-                        saldo_anterior = linha[1]
-                        saldo_anterior_boleano = True
-                        # print(f'saldo anterior => {saldo_anterior}')
-                    if linha[0].upper() == 'SALDO':
-                        saldo = linha[1]
-                        saldo_boleano = True
-                        # print(f'saldo => {saldo}')
-                    if linha[0].upper() == 'PAGO':
-                        pago = linha[1]
-                        pago_boleano = True
-                        # print(f'pago => {pago}')
-                    # if centro_custo and funcionario:
-                if saldo_anterior_boleano and saldo_boleano and pago_boleano and funcionario:
-                    funcionario = False
-                    saldo_anterior_boleano = False
-                    saldo_boleano = False
-                    pago_boleano = False
-                    saldo = converter_string_para_float(saldo)
-                    saldo_anterior = converter_string_para_float(saldo_anterior)
-                    pago = converter_string_para_float(pago)
-                    provisao = float(saldo) + float(pago) - float(saldo_anterior)
-                    # print(saldo_anterior, saldo, pago)
-                    total_saldo_anterior += saldo_anterior
-                    total_saldo += saldo
-                    total_pago += pago
-                    if dic_func.get(nome_funcionario, 'nao encontrado'):
-                        # layout_saida_provisoes(dic_func, provisao)
-                        if provisao > 0:
-                            prov_deb = dic_func.get(nome_funcionario)['prov_13_deb']
-                            prov_cred = dic_func.get(nome_funcionario)['prov_13_cred']
-                            print(nome_funcionario, prov_deb, prov_cred, round(provisao, 2))
-                        elif provisao < 0:
-                            provisao *= -1
-                            prov_cred = dic_func.get(nome_funcionario)['prov_13_deb']
-                            prov_deb = dic_func.get(nome_funcionario)['prov_13_cred']
-                            print(nome_funcionario, prov_deb, prov_cred, round(provisao, 2))
-
-                        else:
-                            pass
-                        # print(f'centro de custo {centro_de_custo} funcionario {nome_funcionario} provisao_lancar {round(provisao, 2)}')
-                    else:
-                        print('nao encontrado')
-        print(f'total saldo anterior {round(total_saldo_anterior, 2)}')
-        print(f'total saldo {round(total_saldo, 2)}')
-        print(f'total pago {round(total_pago, 2)}')
-        print(f'total provisao a lançar {round(total_saldo + total_pago - total_saldo_anterior, 2)}')
     
 
 if __name__ == '__main__':
-    lancar_folha_pagamento()
-    # lancar_folha_13_salario()
+    if os.path.exists('layout_folha_importacao.txt'):
+        os.remove('layout_folha_importacao.txt')
 
+    if os.path.exists('log.txt'):
+        os.remove('log.txt')
+    lancar_folha_pagamento()
+    lancar_folha_13_salario(DataArquivo.data)
+    lancar_folha_ferias_salario(DataArquivo.data)
+
+    print('\n')
+    print('finalizado com sucesso!!')
+    print('\n')
+    os.system('pause')
